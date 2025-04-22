@@ -1,22 +1,63 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
+  View, Text, TextInput, Image, TouchableOpacity,
+  StyleSheet, ScrollView, Platform, PermissionsAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Picker } from '@react-native-picker/picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 export default function ProfileScreen() {
+  
+  const [imageUri, setImageUri] = useState('https://via.placeholder.com/100'); // 👈 สร้าง state
+  const [name, setName] = useState('Samson');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('+66 85 451 7893');
+  const [isEditingPhone, setIsEditingPhone] = useState(false);  
+  
+  
+  
+  
+  // 👇 ฟังก์ชันเลือกรูป
+  const handleChoosePhoto = async () => {
+    // Android: ขอ permission
+    if (Platform.OS === 'android') {
+      const permission = Platform.Version >= 33
+        ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+        : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+  
+      const granted = await PermissionsAndroid.request(permission, {
+        title: 'Permission to access photos',
+        message: 'We need your permission to access your photos.',
+        buttonPositive: 'OK',
+      });
+  
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.warn('Permission not granted');
+        return;
+      }
+    }
+  
+    // เปิดแกลเลอรี (iOS ไม่ต้องขอ permission เอง ถ้ามีใน Info.plist แล้ว)
+    launchImageLibrary(
+      { mediaType: 'photo', quality: 0.5 },
+      (response) => {
+        if (response.didCancel) {
+          console.log('User cancelled image picker');
+        } else if (response.errorCode) {
+          console.error('ImagePicker Error: ', response.errorMessage);
+        } else if (response.assets && response.assets.length > 0) {
+          setImageUri(response.assets[0].uri);
+        }
+      }
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backIcon}>
+        <TouchableOpacity style={styles.backIcon}> 
           <Icon name="chevron-left" size={30} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Profile</Text>
@@ -26,21 +67,34 @@ export default function ProfileScreen() {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: 'https://via.placeholder.com/100' }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.cameraIcon}>
-              <Icon name="camera" size={18} color="white" />
+          <Image
+          source={{ uri: imageUri }} // ✅ ใช้ค่าที่เปลี่ยนจริง
+          style={styles.avatar}
+          />
+            <TouchableOpacity style={styles.cameraIcon}  onPress={handleChoosePhoto}>
+          <Icon name="camera" size={18} color="white" />
             </TouchableOpacity>
           </View>
           
           <View style={styles.nameContainer}>
-            <Text style={styles.name}>Samson</Text>
-            <TouchableOpacity>
-              <Icon name="pencil" size={16} color="#444" />
-            </TouchableOpacity>
-          </View>
+  {isEditingName ? (
+    <TextInput
+      style={styles.nameInput}
+      value={name}
+      onChangeText={setName}
+      onSubmitEditing={() => setIsEditingName(false)}
+      onBlur={() => setIsEditingName(false)}
+      autoFocus
+    />
+  ) : (
+    <>
+      <Text style={styles.name}>{name}</Text>
+      <TouchableOpacity onPress={() => setIsEditingName(true)}>
+        <Icon name="pencil" size={16} color="#444" />
+      </TouchableOpacity>
+    </>
+  )}
+</View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email</Text>
@@ -57,12 +111,26 @@ export default function ProfileScreen() {
               editable={false}
             />
 
-            <Text style={styles.inputLabel}>Phone number</Text>
-            <TextInput
-              style={styles.input}
-              value="+66 85 451 7893"
-              editable={false}
-            />
+<Text style={styles.inputLabel}>Phone number</Text>
+<View style={styles.editableRow}>
+  {isEditingPhone ? (
+    <TextInput
+      style={[styles.input, { flex: 1 }]}
+      value={phoneNumber}
+      onChangeText={setPhoneNumber}
+      onBlur={() => setIsEditingPhone(false)}
+      autoFocus
+      keyboardType="phone-pad"
+    />
+  ) : (
+    <>
+      <Text style={[styles.input, { flex: 1, color: '#000' }]}>{phoneNumber}</Text>
+      <TouchableOpacity onPress={() => setIsEditingPhone(true)}>
+        <Icon name="pencil" size={18} color="#444" style={{ marginLeft: 10 }} />
+      </TouchableOpacity>
+    </>
+  )}
+</View>
 
             <Text style={styles.inputLabel}>Congenital diseases</Text>
             <View style={styles.dropdown}>
@@ -195,5 +263,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'white',
     marginTop: 3,
+  },
+  nameInput: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    borderBottomWidth: 1,
+    borderBottomColor: '#aaa',
+    paddingVertical: 2,
+    minWidth: 100,
   },
 });
